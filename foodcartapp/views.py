@@ -3,6 +3,7 @@ import json
 from django.http import JsonResponse
 from django.templatetags.static import static
 from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 from .models import MakeOrder, Product, ProductOrder
 
@@ -63,9 +64,9 @@ def product_list_api(request):
 def register_order(request):
     # TODO это лишь заглушка
     try:
-        data = json.loads(request.body.decode())
+        data = request.data
     except ValueError:
-        return JsonResponse({
+        return Response({
             'error': 'bla bla bla',
             'valueerror': ValueError
         })
@@ -84,7 +85,7 @@ def register_order(request):
             quantity=product['quantity']
         )
 
-    return JsonResponse({})
+    return Response({})
 
 # {'products': [{'product': 2, 'quantity': 1},
 #               {'product': 3, 'quantity': 2},
