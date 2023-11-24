@@ -62,7 +62,6 @@ def product_list_api(request):
 
 @api_view(['POST'])
 def register_order(request):
-    # TODO это лишь заглушка
     try:
         data = request.data
     except ValueError:
@@ -71,6 +70,26 @@ def register_order(request):
             'valueerror': ValueError
         })
 
+    try:
+        products = data['products']
+    except :
+        return Response({
+            'error': 'products: Обязательное поле.'
+        })
+    if not data['products']:
+        return Response({
+            'error': 'products: Это поле не может быть пустым.'
+        })
+
+    if type(data['products']) is not list:
+        return Response({
+            'error': ' products: Ожидался list со значениями.'
+        })
+    elif len(data['products']) == 0:
+        return Response({
+            'error': 'products: Этот список не может быть пустым.'
+        })
+    
     make_order = MakeOrder.objects.create(
         first_name=data['firstname'],
         last_name=data['lastname'],
