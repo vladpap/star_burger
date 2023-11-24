@@ -2,8 +2,9 @@ import json
 
 from django.http import JsonResponse
 from django.templatetags.static import static
+from rest_framework.decorators import api_view
 
-from .models import Product, MakeOrder, ProductOrder
+from .models import MakeOrder, Product, ProductOrder
 
 
 def banners_list_api(request):
@@ -58,6 +59,7 @@ def product_list_api(request):
     })
 
 
+@api_view(['POST'])
 def register_order(request):
     # TODO это лишь заглушка
     try:
