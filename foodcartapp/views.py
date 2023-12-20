@@ -1,4 +1,5 @@
 import json
+import re
 
 from django.http import JsonResponse
 from django.templatetags.static import static
@@ -70,9 +71,8 @@ def register_order(request):
             'valueerror': ValueError
         })
 
-    try:
-        products = data['products']
-    except :
+    print(f'-=-=-=-=-=-=-=-=\nData: {data}')
+    if 'products' not in data:
         return Response({
             'error': 'products: Обязательное поле.'
         })
@@ -83,13 +83,60 @@ def register_order(request):
 
     if type(data['products']) is not list:
         return Response({
-            'error': ' products: Ожидался list со значениями.'
+            'error': 'products: Ожидался list со значениями.'
         })
+
     elif len(data['products']) == 0:
         return Response({
             'error': 'products: Этот список не может быть пустым.'
         })
-    
+
+    if 'firstname' not in data or 'lastname' not in data or 'phonenumber' not in data or 'address' not in data:
+
+        return Response({
+            'firstname, lastname, phonenumber, address: Обязательное поле.'
+        })
+
+    if not data['firstname']:
+        return Response({
+            'firstname: Это поле не может быть пустым.'
+        })
+
+    if not data['lastname']:
+        return Response({
+            'lastname: Это поле не может быть пустым.'
+        })
+
+    if not data['phonenumber']:
+        return Response({
+            'phonenumber: Это поле не может быть пустым.'
+        })
+
+    if not data['address']:
+        return Response({
+            'address: Это поле не может быть пустым.'
+        })
+
+    if type(data['firstname']) is not str:
+        return Response({
+            'error': 'firstname: Not a valid string.'
+        })
+
+    if type(data['lastname']) is not str:
+        return Response({
+            'error': 'lastname: Not a valid string.'
+        })
+
+    if type(data['address']) is not str:
+        return Response({
+            'address: Not a valid string.'
+        })
+
+    if not re.match(r'^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$', data['phonenumber']):
+        return Response({
+            'phonenumber': 'Введен некорректный номер телефона.'
+        })
+
     make_order = MakeOrder.objects.create(
         first_name=data['firstname'],
         last_name=data['lastname'],
@@ -98,6 +145,15 @@ def register_order(request):
     )
 
     for product in data['products']:
+        
+        product_id = product['product']
+        try:
+            product = Product.objects.get(id=product_id)
+        except:
+            return Response({
+                f'products: Недопустимый первичный ключ {product_id}'
+            })
+
         ProductOrder.objects.create(
             order=make_order,
             product= Product.objects.get(id=product['product']),
