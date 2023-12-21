@@ -66,6 +66,12 @@ def product_list_api(request):
     })
 
 
+class MakeOrderSerialezer(ModelSerializer):
+    class Meta:
+        model = MakeOrder
+        fields = '__all__'
+
+
 class ProductOrderSerializer(ModelSerializer):
 
     class Meta:
@@ -118,5 +124,5 @@ def register_order(request):
             product=product['product'],
             quantity=product['quantity']
         )
-
-    return Response({})
+    order_serializer = MakeOrderSerialezer(make_order)
+    return Response(order_serializer.data)
