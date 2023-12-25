@@ -129,7 +129,7 @@ class MakeOrderQuerySet(models.QuerySet):
         return MakeOrder \
             .objects \
             .annotate(amount=Sum(
-                F('products__quantity') * F('products__product__price'))) \
+                F('products__quantity') * F('products__price'))) \
             .order_by('-id')
 
 
@@ -180,6 +180,12 @@ class ProductOrder(models.Model):
     )
     quantity = models.IntegerField(
         verbose_name='количество'
+    )
+    price = models.DecimalField(
+        'цена',
+        max_digits=7,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
     )
 
     class Meta:
