@@ -1,14 +1,11 @@
 from django.contrib import admin
+from django.http import HttpResponseRedirect
 from django.shortcuts import reverse
 from django.templatetags.static import static
 from django.utils.html import format_html
 
-from .models import Product
-from .models import ProductCategory
-from .models import Restaurant
-from .models import RestaurantMenuItem
-from .models import MakeOrder
-from .models import ProductOrder
+from .models import (MakeOrder, Product, ProductCategory, ProductOrder,
+                     Restaurant, RestaurantMenuItem)
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
@@ -114,7 +111,7 @@ class OrderMakeItemInline(admin.TabularInline):
 
 
 @admin.register(MakeOrder)
-class  MakeOrderAdmin(admin.ModelAdmin):
+class MakeOrderAdmin(admin.ModelAdmin):
     search_fields = [
         'first_name',
         'last_name',
@@ -131,7 +128,13 @@ class  MakeOrderAdmin(admin.ModelAdmin):
         OrderMakeItemInline
     ]
 
-@admin.register(ProductOrder)
-class  ProductOrderAdmin(admin.ModelAdmin):
-    pass
+    def response_change(self, request, obj):
+        if 'back_page' in request.GET:
+            return HttpResponseRedirect(request.GET['back_page'])
+        else:
+            return super().response_post_save_change(request, obj)
 
+
+@admin.register(ProductOrder)
+class ProductOrderAdmin(admin.ModelAdmin):
+    pass
