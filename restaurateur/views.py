@@ -2,7 +2,6 @@ from django import forms
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import F, Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views import View
@@ -91,11 +90,7 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = MakeOrder \
-        .objects \
-        .annotate(amount=Sum(
-            F('products__quantity') * F('products__product__price'))) \
-        .order_by('-id')
+    orders = MakeOrder.objects.with_amount().order_by('-id')
 
     return render(
         request,
