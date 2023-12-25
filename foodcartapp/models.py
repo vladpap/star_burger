@@ -3,6 +3,8 @@ from django.db import models
 from django.db.models import F, Sum
 from phonenumber_field.modelfields import PhoneNumberField
 
+from django.urls import reverse
+
 
 class Restaurant(models.Model):
     name = models.CharField(
