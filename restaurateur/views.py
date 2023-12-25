@@ -1,14 +1,13 @@
 from django import forms
-from django.shortcuts import redirect, render
-from django.views import View
-from django.urls import reverse_lazy
-from django.contrib.auth.decorators import user_passes_test
-
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import user_passes_test
+from django.db.models import F, Sum
+from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
+from django.views import View
 
-
-from foodcartapp.models import Product, Restaurant, MakeOrder
+from foodcartapp.models import MakeOrder, Product, ProductOrder, Restaurant
 
 
 class Login(forms.Form):
@@ -92,16 +91,13 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    order_items = []
-    orders = MakeOrder.objects.all()
-    for order in orders:
-        order_items.append(
-            {'id': order.id,
-             'full_name': f'{order.first_name} {order.last_name}',
-             'phone': order.contact_phone,
-             'address': order.address})
+    orders = MakeOrder \
+        .objects \
+        .annotate(amount=Sum(
+            F('products__quantity') * F('products__product__price'))) \
+        .order_by('-id')
 
     return render(
         request,
         template_name='order_items.html',
-        context={'order_items': order_items})
+        context={'order_items': orders})

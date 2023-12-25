@@ -145,6 +145,10 @@ class MakeOrder(models.Model):
         verbose_name = 'Оформление заказа'
         verbose_name_plural = 'Оформленные заказы'
 
+    @property
+    def full_name(self):
+        return '%s %s' % (self.first_name, self.last_name)
+
     def __str__(self):
         return f'{self.first_name} {self.last_name} {self.address}'
 
@@ -153,10 +157,10 @@ class ProductOrder(models.Model):
     order = models.ForeignKey(
         MakeOrder,
         on_delete=models.CASCADE,
-        related_name='product',
+        related_name='products',
         verbose_name='заказ'
     )
-    product =  models.ForeignKey(
+    product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
         related_name='ordering',
