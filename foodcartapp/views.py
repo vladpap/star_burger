@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import JsonResponse
 from django.templatetags.static import static
 from phonenumber_field.validators import validate_international_phonenumber
@@ -98,6 +99,7 @@ class OrderSerializer(Serializer):
 
 
 @api_view(['POST'])
+@transaction.atomic
 def register_order(request):
     try:
         data = request.data
