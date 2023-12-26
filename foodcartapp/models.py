@@ -1,9 +1,9 @@
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import F, Sum
-from phonenumber_field.modelfields import PhoneNumberField
-
 from django.urls import reverse
+from django.utils import timezone
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 class Restaurant(models.Model):
@@ -170,6 +170,23 @@ class MakeOrder(models.Model):
     comment = models.TextField(
         verbose_name='комментарий',
         blank=True
+    )
+    registrate_at = models.DateTimeField(
+        verbose_name='создан',
+        default=timezone.now,
+        db_index=True
+    )
+    called_at = models.DateTimeField(
+        verbose_name='звонок',
+        blank=True,
+        null=True,
+        db_index=True
+    )
+    delivered_at = models.DateTimeField(
+        verbose_name='доставлен',
+        blank=True,
+        null=True,
+        db_index=True
     )
 
     objects = MakeOrderQuerySet.as_manager()
