@@ -167,6 +167,10 @@ class MakeOrder(models.Model):
         choices=ChoicesStatus.choices,
         db_index=True
     )
+    comment = models.TextField(
+        verbose_name='комментарий',
+        blank=True
+    )
 
     objects = MakeOrderQuerySet.as_manager()
 
