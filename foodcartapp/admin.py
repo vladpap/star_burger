@@ -123,7 +123,10 @@ class MakeOrderAdmin(admin.ModelAdmin):
         'last_name',
         'address',
         'contact_phone',
+        'status',
     ]
+    list_filter = ['status']
+
     inlines = [
         OrderMakeItemInline
     ]

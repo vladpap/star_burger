@@ -136,6 +136,14 @@ class MakeOrderQuerySet(models.QuerySet):
 
 
 class MakeOrder(models.Model):
+
+    class ChoicesStatus(models.TextChoices):
+        COMPLETED = 'Завершен', 'Завершен'
+        COURIER = 'У курьера', 'У курьера'
+        COOK = 'Готовится', 'Готовится'
+        APPROVED = 'Утвержденный', 'Утвержденный'
+        UNPROCESSED = 'Необработанный', 'Необработанный'
+
     first_name = models.CharField(
         'Имя',
         max_length=50
@@ -151,6 +159,13 @@ class MakeOrder(models.Model):
     contact_phone = PhoneNumberField(
         verbose_name='контактный телефон',
         db_index=True,
+    )
+    status = models.CharField(
+        verbose_name='статус',
+        default=ChoicesStatus.UNPROCESSED,
+        max_length=20,
+        choices=ChoicesStatus.choices,
+        db_index=True
     )
 
     objects = MakeOrderQuerySet.as_manager()

@@ -90,7 +90,10 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = MakeOrder.objects.with_amount().order_by('-id')
+    orders = MakeOrder.objects \
+        .exclude(status='COMPLETED') \
+        .with_amount() \
+        .order_by('-id')
 
     return render(
         request,
