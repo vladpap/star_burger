@@ -33,6 +33,7 @@ class RestaurantAdmin(admin.ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
+        'id',
         'get_image_list_preview',
         'name',
         'category',
@@ -124,6 +125,7 @@ class MakeOrderAdmin(admin.ModelAdmin):
         'address',
         'contact_phone',
         'status',
+        'payment_method',
     ]
     list_filter = ['status']
 
@@ -140,4 +142,7 @@ class MakeOrderAdmin(admin.ModelAdmin):
 
 @admin.register(ProductOrder)
 class ProductOrderAdmin(admin.ModelAdmin):
-    pass
+    list_display = [
+        'id',
+        'order',
+    ]

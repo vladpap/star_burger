@@ -138,11 +138,15 @@ class MakeOrderQuerySet(models.QuerySet):
 class MakeOrder(models.Model):
 
     class ChoicesStatus(models.TextChoices):
-        COMPLETED = 'Завершен', 'Завершен'
-        COURIER = 'У курьера', 'У курьера'
-        COOK = 'Готовится', 'Готовится'
-        APPROVED = 'Утвержденный', 'Утвержденный'
-        UNPROCESSED = 'Необработанный', 'Необработанный'
+        COMPLETED = (10, 'Завершен')
+        COURIER = (20, 'У курьера')
+        COOK = (30, 'Готовится')
+        UNPROCESSED = (90, 'Необработанный')
+
+    class ChoicesPaymentMethod(models.TextChoices):
+        CARD = 'Картой', 'Картой'
+        CASH = 'Наличные', 'Наличные'
+        NOT_SPECIFIED = 'Не указан', 'Не указан'
 
     first_name = models.CharField(
         'Имя',
@@ -167,6 +171,13 @@ class MakeOrder(models.Model):
         choices=ChoicesStatus.choices,
         db_index=True
     )
+    payment_method = models.CharField(
+        verbose_name='способ оплаты',
+        default=ChoicesPaymentMethod.NOT_SPECIFIED,
+        max_length=20,
+        choices=ChoicesPaymentMethod.choices,
+        db_index=True
+    )
     comment = models.TextField(
         verbose_name='комментарий',
         blank=True
@@ -188,12 +199,23 @@ class MakeOrder(models.Model):
         null=True,
         db_index=True
     )
+    cook_restaurant = models.ForeignKey(
+        Restaurant,
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+        blank=True,
+        verbose_name='Готовиться в',
+    )
+
+    __original_cook_restaurant = None
 
     objects = MakeOrderQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'Оформление заказа'
         verbose_name_plural = 'Оформленные заказы'
+        ordering = ['-status', 'id']
 
     @property
     def full_name(self):
@@ -201,6 +223,19 @@ class MakeOrder(models.Model):
 
     def __str__(self):
         return f'{self.first_name} {self.last_name} {self.address}'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.cook_restaurant:
+            self.__original_cook_restaurant = self.cook_restaurant.id
+
+    def save(self, *args, **kwargs):
+        if (self.cook_restaurant and (
+                self.cook_restaurant.id != self.__original_cook_restaurant)):
+
+            self.status = self.ChoicesStatus.COOK
+            self.__original_cook_restaurant = self.cook_restaurant.id
+        super(MakeOrder, self).save(*args, **kwargs)
 
 
 class ProductOrder(models.Model):
@@ -232,3 +267,4 @@ class ProductOrder(models.Model):
 
     def __str__(self):
         return self.order.first_name
+
