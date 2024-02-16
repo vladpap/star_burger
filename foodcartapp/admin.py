@@ -18,15 +18,21 @@ class RestaurantAdmin(admin.ModelAdmin):
     search_fields = [
         'name',
         'address',
-        'contact_phone',
+        'contact_phone'
     ]
     list_display = [
         'name',
         'address',
         'contact_phone',
+        'longitude',
+        'latitude'
     ]
     inlines = [
         RestaurantMenuItemInline
+    ]
+    readonly_fields = [
+        'longitude',
+        'latitude'
     ]
 
 
@@ -125,12 +131,19 @@ class MakeOrderAdmin(admin.ModelAdmin):
         'address',
         'contact_phone',
         'status',
-        'payment_method',
+        'longitude',
+        'latitude'
     ]
     list_filter = ['status']
 
     inlines = [
         OrderMakeItemInline
+    ]
+
+    readonly_fields = [
+        'longitude',
+        'latitude',
+        'availability_geo'
     ]
 
     def response_change(self, request, obj):

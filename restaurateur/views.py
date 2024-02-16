@@ -1,13 +1,17 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views import View
+from geopy import distance
 
 from foodcartapp.models import (MakeOrder, Product, Restaurant,
                                 RestaurantMenuItem)
+
+from . import geo_coder
 
 
 class Login(forms.Form):
@@ -98,11 +102,24 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
+
     restaurant_objects = Restaurant.objects.all()
+
     restaurant_names = {
         restaurant.id: restaurant.name for restaurant in restaurant_objects}
-    restaurant_addresses = {
-        restaurant.id: restaurant.address for restaurant in restaurant_objects}
+
+    restaurant_geos = {}
+    for restaurant in restaurant_objects:
+        if not restaurant.latitude:
+            longitude, latitude = geo_coder.fetch_coordinates(
+                settings.YANDEX_GEOCODER_KEY,
+                restaurant.address)
+            restaurant.longitude = longitude
+            restaurant.latitude = latitude
+            restaurant.save(update_fields=['longitude', 'latitude'])
+        restaurant_geos[restaurant.id] = {
+            'lon': restaurant.longitude,
+            'lat': restaurant.latitude}
 
     restaurant_menu_items = (
         RestaurantMenuItem.objects
@@ -135,6 +152,31 @@ def view_orders(request):
             if set(order_products).issubset(restaurant_menu_items_ids[restaurant_id]):
                 cooks_restaurants.append(restaurant_id)
 
+        restaurants_distances = {}
+        if order.availability_geo and not order.longitude:
+            coordinates = geo_coder.fetch_coordinates(
+                settings.YANDEX_GEOCODER_KEY,
+                order.address)
+            if coordinates is None:
+                order.availability_geo = False
+            else:
+                order.longitude = coordinates[0]
+                order.latitude = coordinates[1]
+            order.save(update_fields=[
+                'longitude',
+                'latitude',
+                'availability_geo'])
+        if order.availability_geo and order.status == MakeOrder.ChoicesStatus.UNPROCESSED:
+            for restaurant in cooks_restaurants:
+                calc_distance = round(
+                    distance.distance(
+                        (restaurant_geos[restaurant]['lon'], restaurant_geos[restaurant]['lat']),
+                        (order.longitude, order.latitude)).km, 3)
+                restaurants_distances[restaurant] = str(calc_distance)
+            restaurants_distances = dict(
+                sorted(restaurants_distances.items(), key=lambda item: item[1]))
+            cooks_restaurants = list(restaurants_distances)
+
         order_items.append({
             'id': order.id,
             'status': order.get_status_display(),
@@ -145,12 +187,14 @@ def view_orders(request):
             'address': order.address,
             'comment': order.comment,
             'restaurants': cooks_restaurants,
-            'cook_restaurant': order.cook_restaurant
+            'cook_restaurant': order.cook_restaurant,
+            'availability_geo': order.availability_geo,
+            'restaurant_distance': restaurants_distances
         })
     return render(
         request,
         template_name='order_items.html',
         context={
             'order_items': order_items,
-            'restaurant_names': restaurant_names
+            'restaurant_names': restaurant_names,
         })

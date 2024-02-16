@@ -48,24 +48,34 @@
               {{ item.cook_restaurant.name }}
             </strong>
           {% else %}
-          <details>
-            <summary style="cursor:pointer">
-              {% if item.restaurants|length == 1 %}
-                ➔ Может приготовить заказ:
-              {% else %}
-                ➔ Могут приготовить заказ:
-              {% endif %}
-            </summary>
-            <ul style="list-style-type: none">
-              {% for restaurant_id in item.restaurants %}
-                <li>
-                  <strong>
-                    {{ restaurant_names|get_item:restaurant_id }}
-                  </strong>
-                </li>
-              {% endfor %}
-            </ul>
-          </details>
+            {% if not item.availability_geo %}
+              <span style="color: red">
+                Ошибка определения координат
+              </span>
+            {% else %}
+              <details>
+                <summary style="cursor:pointer">
+                  {% if item.restaurants|length == 1 %}
+                    ➔ Может приготовить заказ:
+                  {% else %}
+                    ➔ Могут приготовить заказ:
+                  {% endif %}
+                </summary>
+                <ul style="list-style-type: none">
+                  {% for restaurant_id in item.restaurants %}
+                    <li>
+                      <strong>
+                        {{ restaurant_names|get_item:restaurant_id }}
+                      </strong>
+                          {% if item.availability_geo and not item.cook_restaurant %}
+                            {{ item.restaurant_distance|get_item:restaurant_id }}
+                            км.
+                          {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              </details>
+            {% endif %}
           {% endif %}
         </td>
         <td><a href="{% url 'admin:foodcartapp_makeorder_change' object_id=item.id %}?back_page={{ request.get_full_path|urlencode }}"> Редактировать </a></td>

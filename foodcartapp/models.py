@@ -20,6 +20,18 @@ class Restaurant(models.Model):
         'контактный телефон',
         blank=True,
     )
+    longitude = models.FloatField(
+        default=None,
+        null=True,
+        blank=True,
+        verbose_name='долгота'
+    )
+    latitude = models.FloatField(
+        default=None,
+        null=True,
+        blank=True,
+        verbose_name='широта'
+    )
 
     class Meta:
         verbose_name = 'ресторан'
@@ -160,6 +172,22 @@ class MakeOrder(models.Model):
         'Адрес',
         max_length=50
     )
+    longitude = models.FloatField(
+        default=None,
+        null=True,
+        blank=True,
+        verbose_name='долгота'
+    )
+    latitude = models.FloatField(
+        default=None,
+        null=True,
+        blank=True,
+        verbose_name='широта'
+    )
+    availability_geo = models.BooleanField(
+        default=True,
+        verbose_name='Доступность координат'
+    )
     contact_phone = PhoneNumberField(
         verbose_name='контактный телефон',
         db_index=True,
@@ -209,6 +237,7 @@ class MakeOrder(models.Model):
     )
 
     __original_cook_restaurant = None
+    __original_address = None
 
     objects = MakeOrderQuerySet.as_manager()
 
@@ -228,6 +257,7 @@ class MakeOrder(models.Model):
         super().__init__(*args, **kwargs)
         if self.cook_restaurant:
             self.__original_cook_restaurant = self.cook_restaurant.id
+            self.__original_address = self.address
 
     def save(self, *args, **kwargs):
         if (self.cook_restaurant and (
@@ -235,6 +265,13 @@ class MakeOrder(models.Model):
 
             self.status = self.ChoicesStatus.COOK
             self.__original_cook_restaurant = self.cook_restaurant.id
+
+        if self.__original_address != self.address:
+            self.latitude = None
+            self.longitude = None
+            self.availability_geo = True
+            self.__original_address = self.address
+
         super(MakeOrder, self).save(*args, **kwargs)
 
 
