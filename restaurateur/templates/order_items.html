@@ -17,30 +17,30 @@
   <br/>
   <br/>
   <div class="container">
-   <table class="table table-responsive">
+   <table class="table table-responsive table-striped">
     <tr>
      <!--<th>ID заказа</th>-->
-      <th>Статус</th>
+      <th scope="col">Статус</th>
       <!--<th>Способ оплаты</th>
-      <th>Сумма заказа</th>
-      <th>Клиент</th>-->
-      <th>Телефон</th>
-      <th>Адрес доставки</th>
-      <th>Комментарий</th>
-      <th>Рестораны</th>
-      <th>Ссылка на админку</th>
+      <th>Сумма заказа</th>-->
+      <th scope="col">Клиент</th>
+      <th scope="col">Телефон</th>
+      <th scope="col">Адрес доставки</th>
+      <!-- <th scope="col">Комментарий</th> -->
+      <th scope="col">Рестораны</th>
+      <th scope="col">Ссылка на админку</th>
     </tr>
 
-    {% for item in order_items %}
+    {% for item in orders %}
       <tr>
         <!--<td>{{ item.id }}</td>-->
-        <td>{{ item.status }}</td>
+        <th scope="row">{{ item.get_status }}</th>
         <!--<td>{{ item.payment_method }}</td>
-        <td>{{ item.amount }}</td>
-        <td>{{ item.full_name }}</td>-->
-        <td>{{ item.contact_phone }}</td>
+        <td>{{ item.amount }}</td>-->
+        <td>{{ item.full_name }}</td>
+        <td>{{ item.phonenumber }}</td>
         <td>{{ item.address }}</td>
-        <td>{{ item.comment }}</td>
+        <!-- <td>{{ item.comment }}</td> -->
         <td>
           {% if item.cook_restaurant %}
             Готовиться в 
@@ -55,22 +55,18 @@
             {% else %}
               <details>
                 <summary style="cursor:pointer">
-                  {% if item.restaurants|length == 1 %}
+                  {% if item.access_restaurants|length == 1 %}
                     ➔ Может приготовить заказ:
                   {% else %}
                     ➔ Могут приготовить заказ:
                   {% endif %}
                 </summary>
                 <ul style="list-style-type: none">
-                  {% for restaurant_id in item.restaurants %}
+                  {% for access_restaurant in item.access_restaurants %}
                     <li>
                       <strong>
-                        {{ restaurant_names|get_item:restaurant_id }}
+                        {{ access_restaurant.name }} {{ access_restaurant.distance }} км.
                       </strong>
-                          {% if item.availability_geo and not item.cook_restaurant %}
-                            {{ item.restaurant_distance|get_item:restaurant_id }}
-                            км.
-                          {% endif %}
                     </li>
                   {% endfor %}
                 </ul>
@@ -78,7 +74,7 @@
             {% endif %}
           {% endif %}
         </td>
-        <td><a href="{% url 'admin:foodcartapp_makeorder_change' object_id=item.id %}?back_page={{ request.get_full_path|urlencode }}"> Редактировать </a></td>
+        <td><a href="{% url 'admin:foodcartapp_order_change' object_id=item.id %}?back_page={{ request.get_full_path|urlencode }}"> Редактировать </a></td>
       </tr>
     {% endfor %}
    </table>

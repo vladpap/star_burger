@@ -8,8 +8,8 @@ from django.urls import reverse_lazy
 from django.views import View
 from geopy import distance
 
-from foodcartapp.models import (MakeOrder, Product, Restaurant,
-                                RestaurantMenuItem)
+from foodcartapp.models import Order, Product, Restaurant
+from geo_location.models import GeoLocation
 
 from . import geo_coder
 
@@ -100,101 +100,77 @@ def view_restaurants(request):
     })
 
 
+def location_from_address(locations, address)\
+            -> (bool, float | None, float | None):
+
+    is_create = False
+    lon, lat = None, None
+    if address in locations.values_list('address', flat=True):
+        for location in locations:
+            if address == location.address:
+                lon = location.longitude
+                lat = location.latitude
+                break
+    else:
+        is_create = True
+        lon, lat = geo_coder.fetch_coordinates(
+                settings.YANDEX_GEOCODER_KEY,
+                address)
+        geo_location, created = GeoLocation.objects.get_or_create(
+            address=address, latitude=lat, longitude=lon)
+
+    return is_create, lon, lat
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
 
-    restaurant_objects = Restaurant.objects.all()
-
-    restaurant_names = {
-        restaurant.id: restaurant.name for restaurant in restaurant_objects}
-
-    restaurant_geos = {}
-    for restaurant in restaurant_objects:
-        if not restaurant.latitude:
-            longitude, latitude = geo_coder.fetch_coordinates(
-                settings.YANDEX_GEOCODER_KEY,
-                restaurant.address)
-            restaurant.longitude = longitude
-            restaurant.latitude = latitude
-            restaurant.save(update_fields=['longitude', 'latitude'])
-        restaurant_geos[restaurant.id] = {
-            'lon': restaurant.longitude,
-            'lat': restaurant.latitude}
-
-    restaurant_menu_items = (
-        RestaurantMenuItem.objects
-        .select_related('restaurant', 'product')
-        .filter(availability=True)
-        .order_by('product'))
-
-    restaurant_menu_items_ids = {}
-    for menu_item in restaurant_menu_items:
-        restaurant_menu_items_ids.setdefault(menu_item.restaurant.id, [])
-        restaurant_menu_items_ids[menu_item.restaurant.id].append(
-            menu_item.product_id)
-
-    order_items = []
     orders = (
-        MakeOrder.objects.all()
+        Order.objects
         .with_amount()
+        .exclude(status=Order.ChoicesStatus.COMPLETED)
         .order_by('-status', 'id')
         .prefetch_related('products')
-        .exclude(status=MakeOrder.ChoicesStatus.COMPLETED))
+        )
+
+    location_adress = GeoLocation.objects.all()
 
     for order in orders:
-        order_products = [
-            order_product.product.id
-            for order_product
-            in order.products.all().select_related('product')]
+        order.get_status = order.get_status_display()
 
-        cooks_restaurants = []
-        for restaurant_id in restaurant_menu_items_ids.keys():
-            if set(order_products).issubset(restaurant_menu_items_ids[restaurant_id]):
-                cooks_restaurants.append(restaurant_id)
+        created, lon_order_addres, lat_order_adress = location_from_address(
+            location_adress, order.address)
 
-        restaurants_distances = {}
-        if order.availability_geo and not order.longitude:
-            coordinates = geo_coder.fetch_coordinates(
-                settings.YANDEX_GEOCODER_KEY,
-                order.address)
-            if coordinates is None:
-                order.availability_geo = False
-            else:
-                order.longitude = coordinates[0]
-                order.latitude = coordinates[1]
-            order.save(update_fields=[
-                'longitude',
-                'latitude',
-                'availability_geo'])
-        if order.availability_geo and order.status == MakeOrder.ChoicesStatus.UNPROCESSED:
-            for restaurant in cooks_restaurants:
-                calc_distance = round(
-                    distance.distance(
-                        (restaurant_geos[restaurant]['lon'], restaurant_geos[restaurant]['lat']),
-                        (order.longitude, order.latitude)).km, 3)
-                restaurants_distances[restaurant] = str(calc_distance)
-            restaurants_distances = dict(
-                sorted(restaurants_distances.items(), key=lambda item: item[1]))
-            cooks_restaurants = list(restaurants_distances)
+        order.availability_geo = True
+        if lon_order_addres is None:
+            order.availability_geo = False
 
-        order_items.append({
-            'id': order.id,
-            'status': order.get_status_display(),
-            'payment_method': order.get_payment_method_display(),
-            'amount': order.amount,
-            'full_name': order.full_name,
-            'contact_phone': order.contact_phone,
-            'address': order.address,
-            'comment': order.comment,
-            'restaurants': cooks_restaurants,
-            'cook_restaurant': order.cook_restaurant,
-            'availability_geo': order.availability_geo,
-            'restaurant_distance': restaurants_distances
-        })
+        product_restaurants = []
+        order_product_restaurants = []
+        for order_item in order.products.all():
+            for restaurant_item in order_item.product\
+                                             .menu_items\
+                                             .filter(availability=True):
+
+                if order.availability_geo:
+                    created, lon, lat = location_from_address(
+                        location_adress, restaurant_item.restaurant.address)
+                    if created:
+                        location_adress = GeoLocation.objects.all()
+
+                    restaurant_item.restaurant.distance = round(
+                        distance.distance(
+                            (lon, lat),
+                            (lon_order_addres, lat_order_adress)).km, 3)
+
+                product_restaurants.append(restaurant_item.restaurant)
+
+            order_product_restaurants.append(set(product_restaurants))
+
+        order.access_restaurants = set\
+            .intersection(*[set(r) for r in order_product_restaurants])
+
     return render(
         request,
         template_name='order_items.html',
-        context={
-            'order_items': order_items,
-            'restaurant_names': restaurant_names,
-        })
+        context={'orders': orders})

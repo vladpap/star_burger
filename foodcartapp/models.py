@@ -1,7 +1,8 @@
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import F, Sum
-from django.urls import reverse
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from django.utils import timezone
 from phonenumber_field.modelfields import PhoneNumberField
 
@@ -13,24 +14,12 @@ class Restaurant(models.Model):
     )
     address = models.CharField(
         'адрес',
-        max_length=100,
+        max_length=80,
         blank=True,
     )
     contact_phone = PhoneNumberField(
         'контактный телефон',
         blank=True,
-    )
-    longitude = models.FloatField(
-        default=None,
-        null=True,
-        blank=True,
-        verbose_name='долгота'
-    )
-    latitude = models.FloatField(
-        default=None,
-        null=True,
-        blank=True,
-        verbose_name='широта'
     )
 
     class Meta:
@@ -138,16 +127,16 @@ class RestaurantMenuItem(models.Model):
         return f"{self.restaurant.name} - {self.product.name}"
 
 
-class MakeOrderQuerySet(models.QuerySet):
+class OrderQuerySet(models.QuerySet):
     def with_amount(self):
-        return MakeOrder \
+        return Order \
             .objects \
             .annotate(amount=Sum(
                 F('products__quantity') * F('products__price'))) \
             .order_by('-id')
 
 
-class MakeOrder(models.Model):
+class Order(models.Model):
 
     class ChoicesStatus(models.TextChoices):
         COMPLETED = (10, 'Завершен')
@@ -160,35 +149,19 @@ class MakeOrder(models.Model):
         CASH = 'Наличные', 'Наличные'
         NOT_SPECIFIED = 'Не указан', 'Не указан'
 
-    first_name = models.CharField(
+    firstname = models.CharField(
         'Имя',
         max_length=50
     )
-    last_name = models.CharField(
+    lastname = models.CharField(
         'Фамилия',
         max_length=50
     )
     address = models.CharField(
         'Адрес',
-        max_length=50
+        max_length=80
     )
-    longitude = models.FloatField(
-        default=None,
-        null=True,
-        blank=True,
-        verbose_name='долгота'
-    )
-    latitude = models.FloatField(
-        default=None,
-        null=True,
-        blank=True,
-        verbose_name='широта'
-    )
-    availability_geo = models.BooleanField(
-        default=True,
-        verbose_name='Доступность координат'
-    )
-    contact_phone = PhoneNumberField(
+    phonenumber = PhoneNumberField(
         verbose_name='контактный телефон',
         db_index=True,
     )
@@ -236,10 +209,7 @@ class MakeOrder(models.Model):
         verbose_name='Готовиться в',
     )
 
-    __original_cook_restaurant = None
-    __original_address = None
-
-    objects = MakeOrderQuerySet.as_manager()
+    objects = OrderQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'Оформление заказа'
@@ -248,36 +218,15 @@ class MakeOrder(models.Model):
 
     @property
     def full_name(self):
-        return '%s %s' % (self.first_name, self.last_name)
+        return '%s %s' % (self.firstname, self.lastname)
 
     def __str__(self):
-        return f'{self.first_name} {self.last_name} {self.address}'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.cook_restaurant:
-            self.__original_cook_restaurant = self.cook_restaurant.id
-            self.__original_address = self.address
-
-    def save(self, *args, **kwargs):
-        if (self.cook_restaurant and (
-                self.cook_restaurant.id != self.__original_cook_restaurant)):
-
-            self.status = self.ChoicesStatus.COOK
-            self.__original_cook_restaurant = self.cook_restaurant.id
-
-        if self.__original_address != self.address:
-            self.latitude = None
-            self.longitude = None
-            self.availability_geo = True
-            self.__original_address = self.address
-
-        super(MakeOrder, self).save(*args, **kwargs)
+        return f'{self.firstname} {self.lastname} {self.address}'
 
 
-class ProductOrder(models.Model):
+class OrderItem(models.Model):
     order = models.ForeignKey(
-        MakeOrder,
+        Order,
         on_delete=models.CASCADE,
         related_name='products',
         verbose_name='заказ'
@@ -289,7 +238,8 @@ class ProductOrder(models.Model):
         verbose_name='продукт',
     )
     quantity = models.IntegerField(
-        verbose_name='количество'
+        verbose_name='количество',
+        validators=[MinValueValidator(1)]
     )
     price = models.DecimalField(
         'цена',
@@ -303,5 +253,15 @@ class ProductOrder(models.Model):
         verbose_name_plural = 'Продуктов в заказе'
 
     def __str__(self):
-        return self.order.first_name
+        return self.order.firstname
 
+
+@receiver(pre_save, sender=Order)
+def order_pre_saved(sender, instance,  **kwargs):
+    old_cook_restaurant = (
+        instance.id
+        and
+        Order.objects.get(id=instance.id).cook_restaurant)
+
+    if instance.cook_restaurant != old_cook_restaurant:
+        instance.status = Order.ChoicesStatus.COOK
