@@ -1,6 +1,5 @@
 from django.db import transaction
-from phonenumber_field.validators import validate_international_phonenumber
-from rest_framework.serializers import ModelSerializer, ValidationError
+from rest_framework.serializers import ModelSerializer
 
 from .models import Order, OrderItem
 
@@ -15,14 +14,6 @@ class OrderItemSerializer(ModelSerializer):
 class OrderSerializer(ModelSerializer):
 
     products = OrderItemSerializer(many=True, allow_empty=False)
-
-    def validate_phonenumber(self, value):
-        """Tracker phone number validation."""
-        try:
-            validate_international_phonenumber(value)
-        except ValidationError:
-            raise ValidationError('Phone number is not valid.')
-        return value
 
     class Meta:
         model = Order
